@@ -2,12 +2,12 @@
 
 <div align="center">
 
-**Multi-Agent Orchestration System for Claude Code**
+**Multi-Agent Orchestration System for Cursor Agent**
 
 *One command. Eight AI agents working in parallel.*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Claude Code](https://img.shields.io/badge/Claude-Code-blueviolet)](https://claude.ai)
+[![Cursor Agent](https://img.shields.io/badge/Cursor-Agent-blue)](https://cursor.com)
 [![tmux](https://img.shields.io/badge/tmux-required-green)](https://github.com/tmux/tmux)
 
 [English](README.md) | [Japanese / 日本語](README_ja.md)
@@ -18,7 +18,7 @@
 
 ## What is this?
 
-**multi-agent-shogun** is a system that runs multiple Claude Code instances simultaneously, organized like a feudal Japanese army.
+**multi-agent-shogun** is a system that runs multiple Cursor Agent instances simultaneously, organized like a feudal Japanese army.
 
 **Why use this?**
 - Give one command, get 8 AI workers executing in parallel
@@ -186,8 +186,8 @@ Then restart your computer and run `install.bat` again.
 | Script | Purpose | When to Run |
 |--------|---------|-------------|
 | `install.bat` | Windows: WSL2 + Ubuntu setup | First time only |
-| `first_setup.sh` | Installs tmux, Node.js, Claude Code CLI + configures Memory MCP | First time only |
-| `shutsujin_departure.sh` | Creates tmux sessions + starts Claude Code + loads instructions | Every day |
+| `first_setup.sh` | Installs tmux, Node.js, Cursor Agent CLI + configures Memory MCP | First time only |
+| `shutsujin_departure.sh` | Creates tmux sessions + starts Cursor Agent + loads instructions | Every day |
 
 ### What `install.bat` does automatically:
 - ✅ Checks if WSL2 is installed (auto-install if missing)
@@ -196,7 +196,7 @@ Then restart your computer and run `install.bat` again.
 
 ### What `shutsujin_departure.sh` does:
 - ✅ Creates tmux sessions (shogun + multiagent)
-- ✅ Launches Claude Code on all agents
+- ✅ Launches Cursor Agent on all agents
 - ✅ Automatically loads instruction files for each agent
 - ✅ Resets queue files for a fresh start
 
@@ -216,8 +216,8 @@ If you prefer to install dependencies manually:
 | WSL2 + Ubuntu | `wsl --install` in PowerShell | Windows only |
 | Set Ubuntu as default | `wsl --set-default Ubuntu` | Required for scripts to work |
 | tmux | `sudo apt install tmux` | Terminal multiplexer |
-| Node.js v20+ | `nvm install 20` | Required for Claude Code CLI |
-| Claude Code CLI | `npm install -g @anthropic-ai/claude-code` | Anthropic's official CLI |
+| Node.js v20+ | `nvm install 20` | Required for Cursor Agent CLI |
+| Cursor Agent CLI | `curl https://cursor.com/install -fsS \| bash` | Cursor's official CLI |
 
 </details>
 
@@ -326,7 +326,7 @@ Agents communicate via YAML files and wake each other with tmux send-keys.
 
 ### 📸 5. Screenshot Support
 
-VSCode's Claude Code extension lets you paste screenshots to explain issues. This CLI system brings the same capability:
+Cursor IDE lets you paste screenshots to explain issues. This CLI system brings the same capability:
 
 ```
 # Configure your screenshot folder in config/settings.yaml
@@ -423,7 +423,7 @@ The Shogun → Karo → Ashigaru hierarchy exists for:
 
 ### How Skills Work
 
-Skills (`.claude/commands/`) are **not committed to this repository** by design.
+Skills (`.cursor/rules/`) are **not committed to this repository** by design.
 
 **Why?**
 - Each user's workflow is different
@@ -442,46 +442,64 @@ This keeps skills **user-driven** — only what you find useful gets added.
 
 ## 🔌 MCP Setup Guide
 
-MCP (Model Context Protocol) servers extend Claude's capabilities. Here's how to set them up:
+MCP (Model Context Protocol) servers extend Cursor Agent's capabilities. Here's how to set them up:
 
 ### What is MCP?
 
-MCP servers give Claude access to external tools:
+MCP servers give Cursor Agent access to external tools:
 - **Notion MCP** → Read/write Notion pages
 - **GitHub MCP** → Create PRs, manage issues
 - **Memory MCP** → Remember things across sessions
 
 ### Installing MCP Servers
 
-Run these commands to add MCP servers:
+Edit `~/.cursor/mcp.json` to add MCP servers:
 
-```bash
-# 1. Notion - Connect to your Notion workspace
-claude mcp add notion -e NOTION_TOKEN=your_token_here -- npx -y @notionhq/notion-mcp-server
-
-# 2. Playwright - Browser automation
-claude mcp add playwright -- npx @playwright/mcp@latest
-# Note: Run `npx playwright install chromium` first
-
-# 3. GitHub - Repository operations
-claude mcp add github -e GITHUB_PERSONAL_ACCESS_TOKEN=your_pat_here -- npx -y @modelcontextprotocol/server-github
-
-# 4. Sequential Thinking - Step-by-step reasoning for complex problems
-claude mcp add sequential-thinking -- npx -y @modelcontextprotocol/server-sequential-thinking
-
-# 5. Memory - Long-term memory across sessions (Recommended!)
-# ✅ Automatically configured by first_setup.sh
-# To reconfigure manually:
-claude mcp add memory -e MEMORY_FILE_PATH="$PWD/memory/shogun_memory.jsonl" -- npx -y @modelcontextprotocol/server-memory
+```json
+{
+  "mcpServers": {
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "env": {
+        "MEMORY_FILE_PATH": "/path/to/multi-agent-shogun/memory/shogun_memory.jsonl"
+      }
+    },
+    "notion": {
+      "command": "npx",
+      "args": ["-y", "@notionhq/notion-mcp-server"],
+      "env": {
+        "NOTION_TOKEN": "your_token_here"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "your_pat_here"
+      }
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    }
+  }
+}
 ```
+
+Note: Run `npx playwright install chromium` before using Playwright MCP.
 
 ### Verify Installation
 
 ```bash
-claude mcp list
+agent mcp list
 ```
 
-You should see all servers with "Connected" status.
+You should see all servers listed.
 
 ---
 
@@ -497,7 +515,7 @@ What happens:
 2. Karo assigns:
    - Ashigaru 1: Research GitHub Copilot
    - Ashigaru 2: Research Cursor
-   - Ashigaru 3: Research Claude Code
+   - Ashigaru 3: Research Cursor Agent
    - Ashigaru 4: Research Codeium
    - Ashigaru 5: Research Amazon CodeWhisperer
 3. All 5 research simultaneously
@@ -551,7 +569,7 @@ language: en   # Japanese + English translation
 │      │                                                              │
 │      ├── Check/Install tmux                                         │
 │      ├── Check/Install Node.js v20+ (via nvm)                      │
-│      ├── Check/Install Claude Code CLI                              │
+│      ├── Check/Install Cursor Agent CLI                             │
 │      └── Configure Memory MCP server                                │
 │                                                                     │
 ├─────────────────────────────────────────────────────────────────────┤
@@ -566,7 +584,7 @@ language: en   # Japanese + English translation
 │      │                                                              │
 │      ├──▶ Reset queue files and dashboard                           │
 │      │                                                              │
-│      └──▶ Launch Claude Code on all agents                          │
+│      └──▶ Launch Cursor Agent on all agents                         │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -577,10 +595,10 @@ language: en   # Japanese + English translation
 <summary><b>shutsujin_departure.sh Options</b> (Click to expand)</summary>
 
 ```bash
-# Default: Full startup (tmux sessions + Claude Code launch)
+# Default: Full startup (tmux sessions + Cursor Agent launch)
 ./shutsujin_departure.sh
 
-# Session setup only (without launching Claude Code)
+# Session setup only (without launching Cursor Agent)
 ./shutsujin_departure.sh -s
 ./shutsujin_departure.sh --setup-only
 
@@ -608,9 +626,9 @@ tmux attach-session -t shogun     # Connect to give commands
 ```bash
 ./shutsujin_departure.sh -s       # Create sessions only
 
-# Manually start Claude Code on specific agents
-tmux send-keys -t shogun:0 'claude --dangerously-skip-permissions' Enter
-tmux send-keys -t multiagent:0.0 'claude --dangerously-skip-permissions' Enter
+# Manually start Cursor Agent on specific agents
+tmux send-keys -t shogun:0 'agent --model opus-4.5 --force' Enter
+tmux send-keys -t multiagent:0.0 'agent --force' Enter
 ```
 
 **Restart After Crash:**
@@ -656,7 +674,7 @@ multi-agent-shogun/
 │
 ├── memory/                   # Memory MCP storage
 ├── dashboard.md              # Real-time status overview
-└── CLAUDE.md                 # Project context for Claude
+└── CLAUDE.md                 # Project context for Cursor Agent
 ```
 
 </details>
@@ -684,10 +702,10 @@ mcp__memory__read_graph()  ← Works!
 <details>
 <summary><b>Agents asking for permissions?</b></summary>
 
-Make sure to start with `--dangerously-skip-permissions`:
+Make sure to start with `--force`:
 
 ```bash
-claude --dangerously-skip-permissions --system-prompt "..."
+agent --force
 ```
 
 </details>

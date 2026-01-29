@@ -4,7 +4,7 @@
 #
 # 使用方法:
 #   ./shutsujin_departure.sh           # 全エージェント起動（通常）
-#   ./shutsujin_departure.sh -s        # セットアップのみ（Claude起動なし）
+#   ./shutsujin_departure.sh -s        # セットアップのみ（Agent起動なし）
 #   ./shutsujin_departure.sh -h        # ヘルプ表示
 
 set -e
@@ -101,7 +101,7 @@ while [[ $# -gt 0 ]]; do
             echo "使用方法: ./shutsujin_departure.sh [オプション]"
             echo ""
             echo "オプション:"
-            echo "  -s, --setup-only    tmuxセッションのセットアップのみ（Claude起動なし）"
+            echo "  -s, --setup-only    tmuxセッションのセットアップのみ（Agent起動なし）"
             echo "  -t, --terminal      Windows Terminal で新しいタブを開く"
             echo "  -shell, --shell SH  シェルを指定（bash または zsh）"
             echo "                      未指定時は config/settings.yaml の設定を使用"
@@ -109,7 +109,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "例:"
             echo "  ./shutsujin_departure.sh              # 全エージェント起動（通常の出陣）"
-            echo "  ./shutsujin_departure.sh -s           # セットアップのみ（手動でClaude起動）"
+            echo "  ./shutsujin_departure.sh -s           # セットアップのみ（手動でAgent起動）"
             echo "  ./shutsujin_departure.sh -t           # 全エージェント起動 + ターミナルタブ展開"
             echo "  ./shutsujin_departure.sh -shell bash  # bash用プロンプトで起動"
             echo "  ./shutsujin_departure.sh -shell zsh   # zsh用プロンプトで起動"
@@ -148,7 +148,7 @@ fi
 # "all files and scripts in this repo are released CC0 / kopimi!"
 # ═══════════════════════════════════════════════════════════════════════════════
 show_battle_cry() {
-    clear
+    clear 2>/dev/null || true
 
     # タイトルバナー（色付き）
     echo ""
@@ -479,35 +479,35 @@ log_success "  └─ 将軍の本陣、構築完了"
 echo ""
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# STEP 6: Claude Code 起動（--setup-only でスキップ）
+# STEP 6: Cursor Agent 起動（--setup-only でスキップ）
 # ═══════════════════════════════════════════════════════════════════════════════
 if [ "$SETUP_ONLY" = false ]; then
-    # Claude Code CLI の存在チェック
-    if ! command -v claude &> /dev/null; then
-        log_info "⚠️  claude コマンドが見つかりません"
-        echo "  first_setup.sh を再実行してください:"
-        echo "    ./first_setup.sh"
+    # Cursor Agent CLI の存在チェック
+    if ! command -v agent &> /dev/null; then
+        log_info "⚠️  agent コマンドが見つかりません"
+        echo "  Cursor CLI をインストールしてください:"
+        echo "    curl https://cursor.com/install -fsS | bash"
         exit 1
     fi
 
-    log_war "👑 全軍に Claude Code を召喚中..."
+    log_war "👑 全軍に Cursor Agent を召喚中..."
 
-    # 将軍
-    tmux send-keys -t shogun "MAX_THINKING_TOKENS=0 claude --model opus --dangerously-skip-permissions"
+    # 将軍（思考モードなしの Opus を使用）
+    tmux send-keys -t shogun "agent --model opus-4.5 --force"
     tmux send-keys -t shogun Enter
     log_info "  └─ 将軍、召喚完了"
 
     # 少し待機（安定のため）
     sleep 1
 
-    # 家老 + 足軽（9ペイン）
+    # 家老 + 足軽（9ペイン）- デフォルトモデル（opus-4.5-thinking）を使用
     for i in {0..8}; do
-        tmux send-keys -t "multiagent:0.$i" "claude --dangerously-skip-permissions"
+        tmux send-keys -t "multiagent:0.$i" "agent --force"
         tmux send-keys -t "multiagent:0.$i" Enter
     done
     log_info "  └─ 家老・足軽、召喚完了"
 
-    log_success "✅ 全軍 Claude Code 起動完了"
+    log_success "✅ 全軍 Cursor Agent 起動完了"
     echo ""
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -581,28 +581,26 @@ NINJA_EOF
     echo -e "                               \033[0;36m[ASCII Art: syntax-samurai/ryu - CC0 1.0 Public Domain]\033[0m"
     echo ""
 
-    echo "  Claude Code の起動を待機中（最大30秒）..."
+    echo "  Cursor Agent の起動を待機中（約30秒）..."
 
-    # 将軍の起動を確認（最大30秒待機）
-    for i in {1..30}; do
-        if tmux capture-pane -t shogun -p | grep -q "bypass permissions"; then
-            echo "  └─ 将軍の Claude Code 起動確認完了（${i}秒）"
-            break
-        fi
-        sleep 1
-    done
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 全エージェントの起動を一括で待機
+    # ペインサイズが小さい場合に起動確認が失敗するため、固定時間待機に変更
+    # ═══════════════════════════════════════════════════════════════════════════
+    sleep 30
+    log_success "  └─ 起動待機完了"
 
     # 将軍に指示書を読み込ませる
     log_info "  └─ 将軍に指示書を伝達中..."
     tmux send-keys -t shogun "instructions/shogun.md を読んで役割を理解せよ。"
-    sleep 0.5
+    sleep 1
     tmux send-keys -t shogun Enter
 
     # 家老に指示書を読み込ませる
     sleep 2
     log_info "  └─ 家老に指示書を伝達中..."
     tmux send-keys -t "multiagent:0.0" "instructions/karo.md を読んで役割を理解せよ。"
-    sleep 0.5
+    sleep 1
     tmux send-keys -t "multiagent:0.0" Enter
 
     # 足軽に指示書を読み込ませる（1-8）
@@ -610,7 +608,7 @@ NINJA_EOF
     log_info "  └─ 足軽に指示書を伝達中..."
     for i in {1..8}; do
         tmux send-keys -t "multiagent:0.$i" "instructions/ashigaru.md を読んで役割を理解せよ。汝は足軽${i}号である。"
-        sleep 0.3
+        sleep 0.5
         tmux send-keys -t "multiagent:0.$i" Enter
         sleep 0.5
     done
@@ -658,17 +656,17 @@ echo "  ╚═══════════════════════
 echo ""
 
 if [ "$SETUP_ONLY" = true ]; then
-    echo "  ⚠️  セットアップのみモード: Claude Codeは未起動です"
+    echo "  ⚠️  セットアップのみモード: Cursor Agentは未起動です"
     echo ""
-    echo "  手動でClaude Codeを起動するには:"
+    echo "  手動でCursor Agentを起動するには:"
     echo "  ┌──────────────────────────────────────────────────────────┐"
     echo "  │  # 将軍を召喚                                            │"
-    echo "  │  tmux send-keys -t shogun 'claude --dangerously-skip-permissions' Enter │"
+    echo "  │  tmux send-keys -t shogun 'agent --model opus-4.5 --force' Enter │"
     echo "  │                                                          │"
     echo "  │  # 家老・足軽を一斉召喚                                   │"
     echo "  │  for i in {0..8}; do \\                                   │"
     echo "  │    tmux send-keys -t multiagent:0.\$i \\                   │"
-    echo "  │      'claude --dangerously-skip-permissions' Enter       │"
+    echo "  │      'agent --force' Enter                               │"
     echo "  │  done                                                    │"
     echo "  └──────────────────────────────────────────────────────────┘"
     echo ""

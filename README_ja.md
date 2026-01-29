@@ -2,12 +2,12 @@
 
 <div align="center">
 
-**Claude Code マルチエージェント統率システム**
+**Cursor Agent マルチエージェント統率システム**
 
 *コマンド1つで、8体のAIエージェントが並列稼働*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Claude Code](https://img.shields.io/badge/Claude-Code-blueviolet)](https://claude.ai)
+[![Cursor Agent](https://img.shields.io/badge/Cursor-Agent-blue)](https://cursor.com)
 [![tmux](https://img.shields.io/badge/tmux-required-green)](https://github.com/tmux/tmux)
 
 [English](README.md) | [日本語](README_ja.md)
@@ -18,7 +18,7 @@
 
 ## これは何？
 
-**multi-agent-shogun** は、複数の Claude Code インスタンスを同時に実行し、戦国時代の軍制のように統率するシステムです。
+**multi-agent-shogun** は、複数の Cursor Agent インスタンスを同時に実行し、戦国時代の軍制のように統率するシステムです。
 
 **なぜ使うのか？**
 - 1つの命令で、8体のAIワーカーが並列で実行
@@ -186,8 +186,8 @@ wsl --install
 | スクリプト | 用途 | 実行タイミング |
 |-----------|------|---------------|
 | `install.bat` | Windows: WSL2 + Ubuntu のセットアップ | 初回のみ |
-| `first_setup.sh` | tmux、Node.js、Claude Code CLI をインストール | 初回のみ |
-| `shutsujin_departure.sh` | tmuxセッション作成 + Claude Code起動 + 指示書読み込み | 毎日 |
+| `first_setup.sh` | tmux、Node.js、Cursor Agent CLI をインストール | 初回のみ |
+| `shutsujin_departure.sh` | tmuxセッション作成 + Cursor Agent起動 + 指示書読み込み | 毎日 |
 
 ### `install.bat` が自動で行うこと：
 - ✅ WSL2がインストールされているかチェック（未インストールなら案内）
@@ -196,7 +196,7 @@ wsl --install
 
 ### `shutsujin_departure.sh` が行うこと：
 - ✅ tmuxセッションを作成（shogun + multiagent）
-- ✅ 全エージェントでClaude Codeを起動
+- ✅ 全エージェントでCursor Agentを起動
 - ✅ 各エージェントに指示書を自動読み込み
 - ✅ キューファイルをリセットして新しい状態に
 
@@ -215,8 +215,8 @@ wsl --install
 |------|-----------------|------|
 | WSL2 + Ubuntu | PowerShellで `wsl --install` | Windowsのみ |
 | tmux | `sudo apt install tmux` | ターミナルマルチプレクサ |
-| Node.js v20+ | `nvm install 20` | Claude Code CLIに必要 |
-| Claude Code CLI | `npm install -g @anthropic-ai/claude-code` | Anthropic公式CLI |
+| Node.js v20+ | `nvm install 20` | Cursor Agent CLIに必要 |
+| Cursor Agent CLI | `curl https://cursor.com/install -fsS \| bash` | Cursor公式CLI |
 
 </details>
 
@@ -325,7 +325,7 @@ AIがあなたの好みを記憶します：
 
 ### 📸 5. スクリーンショット連携
 
-VSCode拡張のClaude Codeはスクショを貼り付けて事象を説明できます。このCLIシステムでも同等の機能を実現：
+Cursor IDEはスクショを貼り付けて事象を説明できます。このCLIシステムでも同等の機能を実現：
 
 ```
 # config/settings.yaml でスクショフォルダを設定
@@ -425,7 +425,7 @@ screenshot:
 
 **1. スキルはコミット対象外**
 
-`.claude/commands/` 配下のスキルはリポジトリにコミットしない設計。理由：
+`.cursor/rules/` 配下のスキルはリポジトリにコミットしない設計。理由：
 - 各ユーザの業務・ワークフローは異なる
 - 汎用的なスキルを押し付けるのではなく、ユーザが自分に必要なスキルを育てていく
 
@@ -447,44 +447,64 @@ dashboard.md の「スキル化候補」に上がる
 
 ## 🔌 MCPセットアップガイド
 
-MCP（Model Context Protocol）サーバはClaudeの機能を拡張します。セットアップ方法：
+MCP（Model Context Protocol）サーバはCursor Agentの機能を拡張します。セットアップ方法：
 
 ### MCPとは？
 
-MCPサーバはClaudeに外部ツールへのアクセスを提供します：
+MCPサーバはCursor Agentに外部ツールへのアクセスを提供します：
 - **Notion MCP** → Notionページの読み書き
 - **GitHub MCP** → PR作成、Issue管理
 - **Memory MCP** → セッション間で記憶を保持
 
 ### MCPサーバのインストール
 
-以下のコマンドでMCPサーバを追加：
+`~/.cursor/mcp.json` を編集してMCPサーバを追加：
 
-```bash
-# 1. Notion - Notionワークスペースに接続
-claude mcp add notion -e NOTION_TOKEN=your_token_here -- npx -y @notionhq/notion-mcp-server
-
-# 2. Playwright - ブラウザ自動化
-claude mcp add playwright -- npx @playwright/mcp@latest
-# 注意: 先に `npx playwright install chromium` を実行してください
-
-# 3. GitHub - リポジトリ操作
-claude mcp add github -e GITHUB_PERSONAL_ACCESS_TOKEN=your_pat_here -- npx -y @modelcontextprotocol/server-github
-
-# 4. Sequential Thinking - 複雑な問題を段階的に思考
-claude mcp add sequential-thinking -- npx -y @modelcontextprotocol/server-sequential-thinking
-
-# 5. Memory - セッション間の長期記憶（推奨！）
-claude mcp add memory -e MEMORY_FILE_PATH="$PWD/memory/shogun_memory.jsonl" -- npx -y @modelcontextprotocol/server-memory
+```json
+{
+  "mcpServers": {
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "env": {
+        "MEMORY_FILE_PATH": "/path/to/multi-agent-shogun/memory/shogun_memory.jsonl"
+      }
+    },
+    "notion": {
+      "command": "npx",
+      "args": ["-y", "@notionhq/notion-mcp-server"],
+      "env": {
+        "NOTION_TOKEN": "your_token_here"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "your_pat_here"
+      }
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    }
+  }
+}
 ```
+
+注意: Playwright MCPを使用する前に `npx playwright install chromium` を実行してください。
 
 ### インストール確認
 
 ```bash
-claude mcp list
+agent mcp list
 ```
 
-全サーバが「Connected」ステータスで表示されるはずです。
+全サーバがリストに表示されるはずです。
 
 ---
 
@@ -500,7 +520,7 @@ claude mcp list
 2. 家老が割り当て:
    - 足軽1: GitHub Copilotを調査
    - 足軽2: Cursorを調査
-   - 足軽3: Claude Codeを調査
+   - 足軽3: Cursor Agentを調査
    - 足軽4: Codeiumを調査
    - 足軽5: Amazon CodeWhispererを調査
 3. 5体が同時に調査
@@ -554,7 +574,7 @@ language: en   # 日本語 + 英訳併記
 │      │                                                              │
 │      ├── tmuxのチェック/インストール                                  │
 │      ├── Node.js v20+のチェック/インストール (nvm経由)                │
-│      └── Claude Code CLIのチェック/インストール                      │
+│      └── Cursor Agent CLIのチェック/インストール                     │
 │                                                                     │
 ├─────────────────────────────────────────────────────────────────────┤
 │                      毎日の起動（毎日実行）                           │
@@ -568,7 +588,7 @@ language: en   # 日本語 + 英訳併記
 │      │                                                              │
 │      ├──▶ キューファイルとダッシュボードをリセット                     │
 │      │                                                              │
-│      └──▶ 全エージェントでClaude Codeを起動                          │
+│      └──▶ 全エージェントでCursor Agentを起動                         │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -579,10 +599,10 @@ language: en   # 日本語 + 英訳併記
 <summary><b>shutsujin_departure.sh オプション</b>（クリックで展開）</summary>
 
 ```bash
-# デフォルト: フル起動（tmuxセッション + Claude Code起動）
+# デフォルト: フル起動（tmuxセッション + Cursor Agent起動）
 ./shutsujin_departure.sh
 
-# セッションセットアップのみ（Claude Code起動なし）
+# セッションセットアップのみ（Cursor Agent起動なし）
 ./shutsujin_departure.sh -s
 ./shutsujin_departure.sh --setup-only
 
@@ -610,9 +630,9 @@ tmux attach-session -t shogun     # 接続してコマンドを出す
 ```bash
 ./shutsujin_departure.sh -s       # セッションのみ作成
 
-# 特定のエージェントでClaude Codeを手動起動
-tmux send-keys -t shogun:0 'claude --dangerously-skip-permissions' Enter
-tmux send-keys -t multiagent:0.0 'claude --dangerously-skip-permissions' Enter
+# 特定のエージェントでCursor Agentを手動起動
+tmux send-keys -t shogun:0 'agent --model opus-4.5 --force' Enter
+tmux send-keys -t multiagent:0.0 'agent --force' Enter
 ```
 
 **クラッシュ後の再起動：**
@@ -672,7 +692,7 @@ multi-agent-shogun/
 │
 ├── memory/                   # Memory MCP保存場所
 ├── dashboard.md              # リアルタイム状況一覧
-└── CLAUDE.md                 # Claude用プロジェクトコンテキスト
+└── CLAUDE.md                 # Cursor Agent用プロジェクトコンテキスト
 ```
 
 </details>
@@ -700,10 +720,10 @@ mcp__memory__read_graph()  ← 動作！
 <details>
 <summary><b>エージェントが権限を求めてくる？</b></summary>
 
-`--dangerously-skip-permissions` 付きで起動していることを確認：
+`--force` 付きで起動していることを確認：
 
 ```bash
-claude --dangerously-skip-permissions --system-prompt "..."
+agent --force
 ```
 
 </details>

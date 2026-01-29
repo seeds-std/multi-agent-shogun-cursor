@@ -245,50 +245,47 @@ else
 fi
 
 # ============================================================
-# STEP 4: Claude Code CLI チェック
+# STEP 4: Cursor Agent CLI チェック
 # ============================================================
-log_step "STEP 4: Claude Code CLI チェック"
+log_step "STEP 4: Cursor Agent CLI チェック"
 
-if command -v claude &> /dev/null; then
+if command -v agent &> /dev/null; then
     # バージョン取得を試みる
-    CLAUDE_VERSION=$(claude --version 2>/dev/null || echo "unknown")
-    log_success "Claude Code CLI がインストール済みです"
-    log_info "バージョン: $CLAUDE_VERSION"
-    RESULTS+=("Claude Code CLI: OK")
+    AGENT_VERSION=$(agent --version 2>/dev/null || echo "unknown")
+    log_success "Cursor Agent CLI がインストール済みです"
+    log_info "バージョン: $AGENT_VERSION"
+    RESULTS+=("Cursor Agent CLI: OK")
 else
-    log_warn "Claude Code CLI がインストールされていません"
+    log_warn "Cursor Agent CLI がインストールされていません"
     echo ""
 
-    if command -v npm &> /dev/null; then
-        echo "  インストールコマンド:"
-        echo "     npm install -g @anthropic-ai/claude-code"
-        echo ""
-        if [ ! -t 0 ]; then
-            REPLY="Y"
-        else
-            read -p "  今すぐインストールしますか? [Y/n]: " REPLY
-        fi
-        REPLY=${REPLY:-Y}
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            log_info "Claude Code CLI をインストール中..."
-            npm install -g @anthropic-ai/claude-code
+    echo "  インストールコマンド:"
+    echo "     curl https://cursor.com/install -fsS | bash"
+    echo ""
+    if [ ! -t 0 ]; then
+        REPLY="Y"
+    else
+        read -p "  今すぐインストールしますか? [Y/n]: " REPLY
+    fi
+    REPLY=${REPLY:-Y}
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        log_info "Cursor Agent CLI をインストール中..."
+        curl https://cursor.com/install -fsS | bash
 
-            if command -v claude &> /dev/null; then
-                log_success "Claude Code CLI インストール完了"
-                RESULTS+=("Claude Code CLI: インストール完了")
-            else
-                log_error "インストールに失敗しました。パスを確認してください"
-                RESULTS+=("Claude Code CLI: インストール失敗")
-                HAS_ERROR=true
-            fi
+        # パスを再読み込み
+        export PATH="$HOME/.cursor/bin:$PATH"
+
+        if command -v agent &> /dev/null; then
+            log_success "Cursor Agent CLI インストール完了"
+            RESULTS+=("Cursor Agent CLI: インストール完了")
         else
-            log_warn "インストールをスキップしました"
-            RESULTS+=("Claude Code CLI: 未インストール (スキップ)")
+            log_error "インストールに失敗しました。ターミナルを再起動してください"
+            RESULTS+=("Cursor Agent CLI: インストール失敗")
             HAS_ERROR=true
         fi
     else
-        echo "  npm がインストールされていないため、先に Node.js をインストールしてください"
-        RESULTS+=("Claude Code CLI: 未インストール (npm必要)")
+        log_warn "インストールをスキップしました"
+        RESULTS+=("Cursor Agent CLI: 未インストール (スキップ)")
         HAS_ERROR=true
     fi
 fi
@@ -355,10 +352,10 @@ language: ja
 # zsh: zsh用プロンプト
 shell: bash
 
-# スキル設定
+# スキル設定（Cursor では rules として管理）
 skill:
-  # スキル保存先（スキル名に shogun- プレフィックスを付けて保存）
-  save_path: "~/.claude/skills/"
+  # グローバルルール保存先
+  save_path: "~/.cursor/rules/"
 
   # ローカルスキル保存先（このプロジェクト専用）
   local_path: "$SCRIPT_DIR/skills/"
@@ -542,30 +539,53 @@ fi
 RESULTS+=("alias設定: OK")
 
 # ============================================================
-# STEP 10: Memory MCP セットアップ
+# STEP 10: Memory MCP セットアップ（Cursor 用 .cursor/mcp.json）
 # ============================================================
 log_step "STEP 10: Memory MCP セットアップ"
 
-if command -v claude &> /dev/null; then
-    # Memory MCP が既に設定済みか確認
-    if claude mcp list 2>/dev/null | grep -q "memory"; then
+MCP_CONFIG_DIR="$HOME/.cursor"
+MCP_CONFIG_FILE="$MCP_CONFIG_DIR/mcp.json"
+
+# .cursor ディレクトリがなければ作成
+mkdir -p "$MCP_CONFIG_DIR"
+
+if [ -f "$MCP_CONFIG_FILE" ]; then
+    # 既存の設定ファイルがある場合、memory が設定済みか確認
+    if grep -q '"memory"' "$MCP_CONFIG_FILE" 2>/dev/null; then
         log_info "Memory MCP は既に設定済みです"
         RESULTS+=("Memory MCP: OK (設定済み)")
     else
-        log_info "Memory MCP を設定中..."
-        if claude mcp add memory \
-            -e MEMORY_FILE_PATH="$SCRIPT_DIR/memory/shogun_memory.jsonl" \
-            -- npx -y @modelcontextprotocol/server-memory 2>/dev/null; then
-            log_success "Memory MCP 設定完了"
-            RESULTS+=("Memory MCP: 設定完了")
-        else
-            log_warn "Memory MCP の設定に失敗しました（手動で設定可能）"
-            RESULTS+=("Memory MCP: 設定失敗 (手動設定可能)")
-        fi
+        log_info "既存の mcp.json に Memory MCP を追加中..."
+        log_warn "手動で追加してください。以下を mcpServers に追加:"
+        echo ""
+        echo '    "memory": {'
+        echo '      "command": "npx",'
+        echo '      "args": ["-y", "@modelcontextprotocol/server-memory"],'
+        echo '      "env": {'
+        echo "        \"MEMORY_FILE_PATH\": \"$SCRIPT_DIR/memory/shogun_memory.jsonl\""
+        echo '      }'
+        echo '    }'
+        echo ""
+        RESULTS+=("Memory MCP: 手動追加が必要")
     fi
 else
-    log_warn "claude コマンドが見つからないため Memory MCP 設定をスキップ"
-    RESULTS+=("Memory MCP: スキップ (claude未インストール)")
+    # 新規作成
+    log_info "Memory MCP 設定ファイルを作成中..."
+    cat > "$MCP_CONFIG_FILE" << EOF
+{
+  "mcpServers": {
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "env": {
+        "MEMORY_FILE_PATH": "$SCRIPT_DIR/memory/shogun_memory.jsonl"
+      }
+    }
+  }
+}
+EOF
+    log_success "Memory MCP 設定完了 ($MCP_CONFIG_FILE)"
+    RESULTS+=("Memory MCP: 設定完了")
 fi
 
 # ============================================================
@@ -611,7 +631,7 @@ echo "  出陣（全エージェント起動）:"
 echo "     ./shutsujin_departure.sh"
 echo ""
 echo "  オプション:"
-echo "     ./shutsujin_departure.sh -s            # セットアップのみ（Claude手動起動）"
+echo "     ./shutsujin_departure.sh -s            # セットアップのみ（Agent手動起動）"
 echo "     ./shutsujin_departure.sh -t            # Windows Terminalタブ展開"
 echo "     ./shutsujin_departure.sh -shell bash   # bash用プロンプトで起動"
 echo "     ./shutsujin_departure.sh -shell zsh    # zsh用プロンプトで起動"
